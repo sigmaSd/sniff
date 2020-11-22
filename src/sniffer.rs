@@ -113,19 +113,16 @@ macro_rules! extract_transport_protocol {
 pub struct Sniffer {
     network_interface: NetworkInterface,
     network_frames: Box<dyn DataLinkReceiver>,
-    dns_shown: bool,
 }
 
 impl Sniffer {
     pub fn new(
         network_interface: NetworkInterface,
         network_frames: Box<dyn DataLinkReceiver>,
-        dns_shown: bool,
     ) -> Self {
         Sniffer {
             network_interface,
             network_frames,
-            dns_shown,
         }
     }
     pub fn next(&mut self) -> Option<Segment> {
@@ -158,7 +155,7 @@ impl Sniffer {
         let version = ip_packet.get_version();
 
         match version {
-            4 => Self::handle_v4(ip_packet, &self.network_interface, self.dns_shown),
+            4 => Self::handle_v4(ip_packet, &self.network_interface),
             6 => Self::handle_v6(
                 Ipv6Packet::new(&bytes[payload_offset..])?,
                 &self.network_interface,
@@ -169,7 +166,6 @@ impl Sniffer {
                     EtherTypes::Ipv4 => Self::handle_v4(
                         Ipv4Packet::new(pkg.payload())?,
                         &self.network_interface,
-                        self.dns_shown,
                     ),
                     EtherTypes::Ipv6 => {
                         Self::handle_v6(Ipv6Packet::new(pkg.payload())?, &self.network_interface)
@@ -207,7 +203,6 @@ impl Sniffer {
     fn handle_v4(
         ip_packet: Ipv4Packet,
         network_interface: &NetworkInterface,
-        show_dns: bool,
     ) -> Option<Segment> {
         let (protocol, source_port, destination_port, data_length) =
             extract_transport_protocol!(ip_packet);
@@ -222,9 +217,6 @@ impl Sniffer {
             Direction::Upload => Connection::new(to, from.ip(), source_port, protocol),
         };
 
-        if !show_dns && connection.remote_socket.port == 53 {
-            return None;
-        }
         Some(Segment {
             interface_name,
             connection,
