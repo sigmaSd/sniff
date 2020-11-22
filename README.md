@@ -12,7 +12,7 @@ fn sniff() {
         .zip(networks.network_frames.into_iter())
         .for_each(|(interface, frame)| {
             threads.push(std::thread::spawn(|| {
-                let mut sniffer = sniff::sniffer::Sniffer::new(interface, frame, false);
+                let mut sniffer = sniff::sniffer::Sniffer::new(interface, frame);
                 loop {
                     let segment = sniffer.next();
                     dbg!(segment);
