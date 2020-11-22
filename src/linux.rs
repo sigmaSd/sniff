@@ -1,6 +1,6 @@
-use ::std::collections::HashMap;
-
 use ::procfs::process::FDTarget;
+
+use ::std::collections::HashMap;
 
 use super::connection::{LocalSocket, Protocol};
 use super::sniffer::OpenSockets;

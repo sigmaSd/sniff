@@ -1,5 +1,3 @@
-use ::std::boxed::Box;
-
 use ::pnet::datalink::{DataLinkReceiver, NetworkInterface};
 use ::pnet::packet::ethernet::{EtherTypes, EthernetPacket};
 use ::pnet::packet::ip::{IpNextHeaderProtocol, IpNextHeaderProtocols};
@@ -8,15 +6,29 @@ use ::pnet::packet::tcp::TcpPacket;
 use ::pnet::packet::udp::UdpPacket;
 use ::pnet::packet::Packet;
 use pnet::datalink;
+use pnet::ipnetwork::IpNetwork;
 use pnet::packet::ipv4::Ipv4Packet;
 
-use ::std::io::{self};
+use ::std::boxed::Box;
+use ::std::io;
 use ::std::net::{IpAddr, SocketAddr};
 use ::std::thread::park_timeout;
-use pnet::ipnetwork::IpNetwork;
 
+use super::connection::LocalSocket;
 use super::connection::{Connection, Protocol};
-//use crate::os::shared::get_datalink_channel;
+
+#[cfg(target_os = "linux")]
+use super::linux::get_open_sockets;
+#[cfg(any(target_os = "macos", target_os = "freebsd"))]
+use super::lsof::get_open_sockets;
+#[cfg(target_os = "windows")]
+use super::windows::get_open_sockets;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+pub struct OpenSockets {
+    pub sockets_to_procs: std::collections::HashMap<LocalSocket, String>,
+}
 
 pub(crate) fn get_datalink_channel(
     interface: &NetworkInterface,
@@ -222,19 +234,6 @@ impl Sniffer {
     }
 }
 
-use super::connection::LocalSocket;
-
-pub struct OpenSockets {
-    pub sockets_to_procs: std::collections::HashMap<LocalSocket, String>,
-}
-
-#[cfg(target_os = "linux")]
-use super::linux::get_open_sockets;
-#[cfg(any(target_os = "macos", target_os = "freebsd"))]
-use super::lsof::get_open_sockets;
-#[cfg(target_os = "windows")]
-use super::windows::get_open_sockets;
-
 fn get_interface(interface_name: &str) -> Option<NetworkInterface> {
     datalink::interfaces()
         .into_iter()
@@ -289,11 +288,6 @@ pub fn get_networks(interface_name: Option<String>) -> Result<OsInputOutput> {
     };
 
     if available_network_frames.is_empty() {
-        // let all_errors = collect_errors(network_frames.clone());
-        // if !all_errors.is_empty() {
-        //     failure::bail!(all_errors);
-        // }
-
         return Err("Failed to find any network interface to listen on.".into());
     }
 
@@ -303,4 +297,3 @@ pub fn get_networks(interface_name: Option<String>) -> Result<OsInputOutput> {
         get_open_sockets,
     })
 }
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

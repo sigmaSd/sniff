@@ -1,10 +1,8 @@
 use ::std::collections::HashMap;
 
-//use super::sniffer::{OpenSockets,LocalSocket};
-use crate::connection::LocalSocket;
-use crate::sniffer::OpenSockets;
-
+use super::connection::LocalSocket;
 use super::lsof_utils;
+use super::sniffer::OpenSockets;
 
 #[derive(Debug)]
 struct RawConnection {

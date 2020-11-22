@@ -7,27 +7,27 @@ mod lsof_utils;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub(crate) mod connection;
+pub mod connection;
 pub mod sniffer;
 
 #[test]
-fn s() {
-    let mut t = vec![];
-    let i = sniffer::get_networks(None).unwrap();
-    i.network_interfaces
+fn sniff() {
+    let mut threads = vec![];
+    let networks = sniffer::get_networks(None).unwrap();
+    networks
+        .network_interfaces
         .into_iter()
-        .zip(i.network_frames.into_iter())
-        .for_each(|(ii, f)| {
-            t.push(std::thread::spawn(|| {
-                let mut ss = sniffer::Sniffer::new(ii, f, false);
+        .zip(networks.network_frames.into_iter())
+        .for_each(|(interface, frame)| {
+            threads.push(std::thread::spawn(|| {
+                let mut sniffer = sniffer::Sniffer::new(interface, frame, false);
                 loop {
-                    let a = ss.next();
-                    dbg!(a);
+                    let segment = sniffer.next();
+                    dbg!(segment);
                 }
             }));
         });
-
-    t.into_iter().for_each(|t| {
-        t.join().unwrap();
-    });
+    threads
+        .into_iter()
+        .for_each(|thread| thread.join().unwrap());
 }

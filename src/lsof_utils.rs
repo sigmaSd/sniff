@@ -1,9 +1,10 @@
-use super::connection::Protocol;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::ffi::OsStr;
 use std::net::IpAddr;
 use std::process::Command;
+
+use super::connection::Protocol;
 
 #[derive(Debug, Clone)]
 pub struct RawConnection {

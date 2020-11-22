@@ -1,11 +1,11 @@
-use ::std::collections::HashMap;
-
 use ::sysinfo::ProcessExt;
 use netstat2::*;
+use sysinfo::{Pid, System, SystemExt};
+
+use ::std::collections::HashMap;
 
 use super::connection::{LocalSocket, Protocol};
 use crate::sniffer::OpenSockets;
-use sysinfo::{Pid, System, SystemExt};
 
 pub(crate) fn get_open_sockets() -> OpenSockets {
     let mut open_sockets = HashMap::new();
