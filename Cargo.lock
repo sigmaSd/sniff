@@ -513,9 +513,11 @@ name = "sniff"
 version = "0.1.0"
 dependencies = [
  "ipnetwork 0.17.0",
+ "lazy_static",
  "netstat2",
  "pnet",
  "procfs",
+ "regex",
  "sysinfo",
 ]
 

@@ -3,8 +3,8 @@ use ::std::collections::HashMap;
 use ::sysinfo::ProcessExt;
 use netstat2::*;
 
-use crate::network::{LocalSocket, Protocol};
-use crate::OpenSockets;
+use super::connection::{LocalSocket, Protocol};
+use crate::sniffer::OpenSockets;
 use sysinfo::{Pid, System, SystemExt};
 
 pub(crate) fn get_open_sockets() -> OpenSockets {

@@ -1,7 +1,8 @@
 use ::std::collections::HashMap;
 
-use crate::network::LocalSocket;
-use crate::OpenSockets;
+//use super::sniffer::{OpenSockets,LocalSocket};
+use crate::connection::LocalSocket;
+use crate::sniffer::OpenSockets;
 
 use super::lsof_utils;
 
