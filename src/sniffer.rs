@@ -125,56 +125,6 @@ impl Sniffer {
             network_frames,
         }
     }
-    pub fn next(&mut self) -> Option<Segment> {
-        let bytes = match self.network_frames.next() {
-            Ok(bytes) => bytes,
-            Err(err) => match err.kind() {
-                std::io::ErrorKind::TimedOut => {
-                    park_timeout(PACKET_WAIT_TIMEOUT);
-                    return None;
-                }
-                _ => {
-                    park_timeout(CHANNEL_RESET_DELAY);
-                    self.reset_channel().ok();
-                    return None;
-                }
-            },
-        };
-        // See https://github.com/libpnet/libpnet/blob/master/examples/packetdump.rs
-        // VPN interfaces (such as utun0, utun1, etc) have POINT_TO_POINT bit set to 1
-        let payload_offset = if (self.network_interface.is_loopback()
-            || self.network_interface.is_point_to_point())
-            && cfg!(target_os = "macos")
-        {
-            // The pnet code for BPF loopback adds a zero'd out Ethernet header
-            14
-        } else {
-            0
-        };
-        let ip_packet = Ipv4Packet::new(&bytes[payload_offset..])?;
-        let version = ip_packet.get_version();
-
-        match version {
-            4 => Self::handle_v4(ip_packet, &self.network_interface),
-            6 => Self::handle_v6(
-                Ipv6Packet::new(&bytes[payload_offset..])?,
-                &self.network_interface,
-            ),
-            _ => {
-                let pkg = EthernetPacket::new(bytes)?;
-                match pkg.get_ethertype() {
-                    EtherTypes::Ipv4 => Self::handle_v4(
-                        Ipv4Packet::new(pkg.payload())?,
-                        &self.network_interface,
-                    ),
-                    EtherTypes::Ipv6 => {
-                        Self::handle_v6(Ipv6Packet::new(pkg.payload())?, &self.network_interface)
-                    }
-                    _ => None,
-                }
-            }
-        }
-    }
     pub fn reset_channel(&mut self) -> Result<()> {
         self.network_frames = get_datalink_channel(&self.network_interface)
             .map_err(|_| io::Error::new(io::ErrorKind::Other, "Interface not available"))?;
@@ -200,10 +150,7 @@ impl Sniffer {
             direction,
         })
     }
-    fn handle_v4(
-        ip_packet: Ipv4Packet,
-        network_interface: &NetworkInterface,
-    ) -> Option<Segment> {
+    fn handle_v4(ip_packet: Ipv4Packet, network_interface: &NetworkInterface) -> Option<Segment> {
         let (protocol, source_port, destination_port, data_length) =
             extract_transport_protocol!(ip_packet);
 
@@ -288,4 +235,57 @@ pub fn get_networks(interface_name: Option<String>) -> Result<OsInputOutput> {
         network_frames: available_network_frames,
         get_open_sockets,
     })
+}
+
+impl Iterator for Sniffer {
+    type Item = Segment;
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytes = match self.network_frames.next() {
+            Ok(bytes) => bytes,
+            Err(err) => match err.kind() {
+                std::io::ErrorKind::TimedOut => {
+                    park_timeout(PACKET_WAIT_TIMEOUT);
+                    return None;
+                }
+                _ => {
+                    park_timeout(CHANNEL_RESET_DELAY);
+                    self.reset_channel().ok();
+                    return None;
+                }
+            },
+        };
+        // See https://github.com/libpnet/libpnet/blob/master/examples/packetdump.rs
+        // VPN interfaces (such as utun0, utun1, etc) have POINT_TO_POINT bit set to 1
+        let payload_offset = if (self.network_interface.is_loopback()
+            || self.network_interface.is_point_to_point())
+            && cfg!(target_os = "macos")
+        {
+            // The pnet code for BPF loopback adds a zero'd out Ethernet header
+            14
+        } else {
+            0
+        };
+        let ip_packet = Ipv4Packet::new(&bytes[payload_offset..])?;
+        let version = ip_packet.get_version();
+
+        match version {
+            4 => Self::handle_v4(ip_packet, &self.network_interface),
+            6 => Self::handle_v6(
+                Ipv6Packet::new(&bytes[payload_offset..])?,
+                &self.network_interface,
+            ),
+            _ => {
+                let pkg = EthernetPacket::new(bytes)?;
+                match pkg.get_ethertype() {
+                    EtherTypes::Ipv4 => {
+                        Self::handle_v4(Ipv4Packet::new(pkg.payload())?, &self.network_interface)
+                    }
+                    EtherTypes::Ipv6 => {
+                        Self::handle_v6(Ipv6Packet::new(pkg.payload())?, &self.network_interface)
+                    }
+                    _ => None,
+                }
+            }
+        }
+    }
 }
